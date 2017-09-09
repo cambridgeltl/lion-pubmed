@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Download source data.
+# Extract metadata.
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 INDIR="$SCRIPTDIR/../data/original-data"
