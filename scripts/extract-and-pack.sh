@@ -22,7 +22,7 @@ fi
 
 for f in "$@"; do
     echo -n "Extracting $f ... " >&2
-    python "$SCRIPTDIR/extractTIABs.py" -o "$TMPDIR" "$f"
+    python "$SCRIPTDIR/extract.py" -o "$TMPDIR" "$f"
     echo "done." >&2
 
     t=`basename $f .xml.gz`

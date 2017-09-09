@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Convert output of extractTIABs.py --json --metadata --no-title --no-abstract
+# Convert output of extract.py --json --metadata --no-title --no-abstract
 # into PMID<TAB>YEAR format, where YEAR is the publication year.
 
 for f in "$@"; do
