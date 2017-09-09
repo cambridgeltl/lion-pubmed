@@ -590,7 +590,10 @@ def save_in_tar(tar, name, text):
     info.mtime = time()
     tar.addfile(info, sio)
 
-def write_citation(directory, name, outfile, citation, options):
+def indent(text, idt='  '):
+    return '\n'.join([idt+t for t in text.split('\n')])
+
+def write_citation(directory, name, outfile, citation, options, first=True):
     if options.ascii:
         citation_to_ascii(citation)
     if options.ssplit:
@@ -602,8 +605,12 @@ def write_citation(directory, name, outfile, citation, options):
     else:
         text = json.dumps(citation.to_dict(options), sort_keys=True,
                           indent=2, separators=(',', ': '))
-    if directory is None:
-        print >> utf8_stdout, text
+
+    output_to_stdout = directory is None and outfile is None
+    if output_to_stdout:
+        if options.json and not first:
+            print >> utf8_stdout, ','    # valid JSON
+        utf8_stdout.write(indent(text))
     else:
         suffix = '.txt' if not options.json else '.json'
         fn = os.path.join(directory, citation.PMID+suffix)
@@ -653,6 +660,12 @@ def process_stream(stream, name, outdir, options):
     else:
         outfile = None
 
+    output_to_stdout = outdir is None and outfile is None
+
+    if output_to_stdout and options.json :
+        print >> utf8_stdout, '['    # valid JSON
+
+    first = True
     for event, element in stream:
         if event != 'end' or element.tag != 'MedlineCitation':
             continue
@@ -663,10 +676,14 @@ def process_stream(stream, name, outdir, options):
             continue
 
         citation = Citation.from_xml(element)
-        write_citation(outdir, name, outfile, citation, options)
+        write_citation(outdir, name, outfile, citation, options, first)
         output_count += 1
 
         element.clear()
+        first = False
+
+    if output_to_stdout and options.json :
+        print >> utf8_stdout, '\n]'    # valid JSON
 
     if options.tgz:
         outfile.close()
