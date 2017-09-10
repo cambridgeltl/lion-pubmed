@@ -4,9 +4,11 @@
 
 from __future__ import print_function
 
+import os
 import sys
 import re
 import logging
+import codecs
 
 try:
     import ujson as json
@@ -34,7 +36,7 @@ def read_pubdates(fn, id_to_pubdates=None):
     if id_to_pubdates is None:
         id_to_pubdates = {}
 
-    info('reading publication dates from {}'.format(fn))
+    info('reading publication dates from {}'.format(os.path.basename(fn)))
     with open(fn) as f:
         data = json.load(f)
     for i, d in enumerate(data, start=1):
@@ -42,7 +44,7 @@ def read_pubdates(fn, id_to_pubdates=None):
         if id_ not in id_to_pubdates:
             id_to_pubdates[id_] = []
         id_to_pubdates[id_].append(pubdate)
-    info('read {} publication dates from {}'.format(i, fn))
+    info('read {} publication dates from {}'.format(i, os.path.basename(fn)))
     return id_to_pubdates
 
 
@@ -52,29 +54,43 @@ def get_pubyears(id_to_pubdates):
         for date in id_to_pubdates[id_]:
             orig = date
             # resolve approximate dates such as "Summer 2017"
-            date = re.sub(r'^(?:spring|summer|autumn|fall|winter)[[:space:]]*',
-                          '', date, flags=re.I)
+            date = re.sub(r'^(?:spring|summer|autumn|fall|winter)\s*', '',
+                          date, flags=re.I)
             # assume initial four digits are year
+            date = date.replace('Fall ', '')
             m = re.match(r'^([0-9]{4})\b', date)
             if not m:
-                raise ValueError('Failed to parse year for {}: {}'.format(
+                error(u'Failed to parse year for {} from "{}"'.format(
                     id_, orig))
             else:
                 pubyears.append(m.group(1))
-        id_to_pubdates[id_] = pubyears
+        if pubyears:
+            id_to_pubdates[id_] = pubyears
+        else:
+            error(u'No valid year for {}: {}'.format(id_, id_to_pubdates[id_]))
     return id_to_pubdates
+
+
+def uniq(seq):
+    useq, seen = [], set()
+    for i in seq:
+        if i in seen:
+            continue
+        seen.add(i)
+        useq.append(i)
+    return useq
 
 
 def resolve_repeated(id_to_pubdates):
     id_to_pubdate = {}
     for id_, pubdates in id_to_pubdates.iteritems():
-        uniq = set(pubdates)
-        if len(uniq) == 1:
+        pubdates = uniq(pubdates)
+        if len(pubdates) == 1:
             id_to_pubdate[id_] = pubdates[0]
         else:
             choice = sorted(pubdates)[0]
             warn('multiple pubdates for {} ({}), using {}'.format(
-                id_, pubdates, choice))
+                id_, ', '.join(pubdates), choice))
             id_to_pubdate[id_] = choice
     return id_to_pubdate
 
@@ -92,8 +108,9 @@ def main(argv):
         id_to_pubdates = get_pubyears(id_to_pubdates)
     id_to_pubdate = resolve_repeated(id_to_pubdates)
 
+    utf8out = codecs.getwriter('utf-8')(sys.stdout)
     for id_, pubdate in sorted(id_to_pubdate.items(), key=lambda i: int(i[0])):
-        print('{}\t{}'.format(id_, pubdate))
+        print(u'{}\t{}'.format(id_, pubdate), file=utf8out)
 
 
 if __name__ == '__main__':
